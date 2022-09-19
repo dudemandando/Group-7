@@ -1,0 +1,59 @@
+
+
+```{r}
+library(tidyverse)
+library(mclust)
+library(factoextra)
+library(NbClust)
+
+data <- read.csv("SeoulBikeData.csv")
+data$holiday_dummy <- ifelse(data$Holiday == "No Holiday",0,1)
+data$winter_dummy <- ifelse(data$Seasons == "Winter",1,0)
+data$spring_dummy <- ifelse(data$Seasons == "Spring",1,0)
+data$summer_dummy <- ifelse(data$Seasons == "Summer",1,0)
+data$autumn_dummy <- ifelse(data$Seasons == "Autumn",1,0)
+
+clust_data <- data %>% select(-c(Date, Holiday, Seasons, Functioning.Day))
+mclust_data <- scale(clust_data)
+model_clustering <- Mclust(mclust_data, G = 2:9)
+summary(model_clustering)
+plot(model_clustering, what=c("classification"))
+
+clust_data$model_clusters <- model_clustering$classification
+
+kmeans_data <- scale(clust_data)
+fviz_nbclust(kmeans_data, kmeans, method = "wss") + geom_vline(xintercept = 6, linetype = 2) + labs(subtitle = "Elbow method")
+
+fviz_nbclust(kmeans_data, kmeans, method = "silhouette") + geom_vline(xintercept = 6, linetype = 2) + labs(subtitle = "Silhouette method")
+
+km.res <- kmeans(kmeans_data, 6, nstart = 25)
+table(km.res$cluster)
+clust_data$kmean_cluster <- km.res$cluster
+fviz_cluster(km.res, kmeans_data, geom = c("point"), ellipse.type = "euclid") + theme_bw()
+
+
+clust_data %>% ggplot(aes(x=model_clusters, fill = factor(model_clusters)))+geom_bar() + theme_bw() + xlab("Clusters") + ylab("Count") + ggtitle("Count of Each Cluster - Model Based Clustering")+theme(legend.position = "none")
+
+clust_data %>% ggplot(aes(x=kmean_cluster, fill = factor(kmean_cluster)))+geom_bar() + theme_bw() + xlab("Clusters") + ylab("Count") + ggtitle("Count of Each Cluster - KMeans Clustering")+theme(legend.position = "none")
+
+
+avg_rentedbike_k <- clust_data %>% group_by(kmean_cluster) %>% summarise(avg_rentals = mean(Rented.Bike.Count))
+avg_rentedbike_k
+
+avg_rentedbike_m <- clust_data %>% group_by(model_clusters) %>% summarise(avg_rentals = mean(Rented.Bike.Count))
+avg_rentedbike_m
+
+avg_rentedbike_k %>% ggplot(aes(y=avg_rentals, x=kmean_cluster, fill = factor(kmean_cluster)))+geom_bar(stat="identity") + theme_bw() + xlab("Clusters") + ylab("Rentals") + ggtitle("Average Bikes Rented - KMeans Clustering")+theme(legend.position = "none")
+
+avg_rentedbike_m %>% ggplot(aes(y=avg_rentals, x=model_clusters, fill = factor(model_clusters)))+geom_bar(stat="identity") + theme_bw() + xlab("Clusters") + ylab("Rentals") + ggtitle("Average Bikes Rented - Model Based Clustering")+theme(legend.position = "none")
+
+kmeans2 <- clust_data %>% filter(kmean_cluster==2)
+summary(kmeans2)
+summary(clust_data)
+
+model8 <- clust_data %>% filter(model_clusters==8)
+summary(model8)
+summary(clust_data)
+
+```
+
